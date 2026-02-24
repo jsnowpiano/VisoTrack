@@ -780,7 +780,7 @@ class MainWindow(QMainWindow):
         prog_header.addWidget(self.calib_step_lbl)
         prog_lay.addLayout(prog_header)
 
-        self.calib_bar = QProgressBar(); self.calib_bar.setRange(0, 9)
+        self.calib_bar = QProgressBar(); self.calib_bar.setRange(0, 21)
         self.calib_bar.setValue(0); self.calib_bar.setTextVisible(False)
         self.calib_bar.setFixedHeight(6); prog_lay.addWidget(self.calib_bar)
 
@@ -1041,13 +1041,19 @@ class MainWindow(QMainWindow):
         self.worker.start_calibration()
 
     def _on_calib_step(self, idx, px, py):
-        self.calib_step_lbl.setText(f"Point {idx + 1} of 9")
-        self.calib_bar.setValue(idx); self.point_grid.set_active(idx)
+        if idx < 20:
+            self.calib_step_lbl.setText(f"Point {idx + 1} of 20")
+            self.calib_bar.setValue(idx)
+            self.point_grid.set_active(min(idx, 8))
+            self._bottom_bar.setText(f"  Calibrating — point {idx + 1} of 20. Keep eyes on the dot.")
+        else:
+            self.calib_step_lbl.setText("Offset correction…")
+            self.calib_bar.setValue(20)
+            self._bottom_bar.setText("  Almost done — look at the centre dot to correct offset.")
         self.overlay.show_point(px, py)
-        self._bottom_bar.setText(f"  Calibrating — point {idx + 1} of 9. Keep eyes on the dot.")
 
     def _on_calib_done(self):
-        self.overlay.hide_overlay(); self.calib_bar.setValue(9)
+        self.overlay.hide_overlay(); self.calib_bar.setValue(21)
         self.calib_step_lbl.setText("Complete ✓"); self.point_grid.set_done()
         self.start_btn.setEnabled(True); self.start_btn.setText("Begin Calibration")
         self.recalib_btn.setVisible(True)
