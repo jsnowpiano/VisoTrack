@@ -36,9 +36,6 @@ def _generate_access_code(length=6):
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
-# ─────────────────────────────────────────────────────────────
-#  Company (Researcher) DB
-# ─────────────────────────────────────────────────────────────
 class CompanyDatabaseConnection:
     def __init__(self):
         self.client = client
@@ -46,7 +43,6 @@ class CompanyDatabaseConnection:
         self.collection = dataBase["CompanyCollection"]
 
     def create_company(self, company_data: dict) -> str:
-        """Insert a new company doc; returns the inserted _id as string."""
         result = self.collection.insert_one(company_data)
         return str(result.inserted_id)
 
@@ -63,7 +59,6 @@ class CompanyDatabaseConnection:
         return [_clean(d) for d in docs]
 
     def generate_unique_code(self) -> str:
-        """Keep generating until we find a code not already in use."""
         for _ in range(20):
             code = _generate_access_code()
             if not self.collection.find_one({"access_code": code}):
@@ -71,9 +66,6 @@ class CompanyDatabaseConnection:
         raise RuntimeError("Could not generate a unique access code")
 
 
-# ─────────────────────────────────────────────────────────────
-#  Study DB  (now access-code aware)
-# ─────────────────────────────────────────────────────────────
 class StudyDatabaseConnection:
     def __init__(self):
         self.client = client
@@ -81,10 +73,6 @@ class StudyDatabaseConnection:
         self.collection = collection
 
     def get_all_studies(self, company_code: str = None):
-        """
-        Return studies without image data.
-        If company_code is provided, filter to only that company's studies.
-        """
         query = {}
         if company_code:
             query["company_code"] = company_code
@@ -92,7 +80,6 @@ class StudyDatabaseConnection:
         return [_clean(s) for s in studies]
 
     def get_all_studies_full(self, company_code: str = None):
-        """Return all studies including image data (use sparingly)."""
         query = {}
         if company_code:
             query["company_code"] = company_code
@@ -112,7 +99,6 @@ class StudyDatabaseConnection:
 
     def add_gaze_session(self, study_name: str, company_name: str,
                          gaze_points: list, company_code: str = None):
-        """Append a new gaze session to an existing study's gaze_sessions array."""
         session = {
             "recorded_at": datetime.utcnow().isoformat(),
             "gaze_points": gaze_points,
@@ -139,9 +125,6 @@ class StudyDatabaseConnection:
         return result.deleted_count
 
 
-# ─────────────────────────────────────────────────────────────
-#  User (Participant) DB
-# ─────────────────────────────────────────────────────────────
 class UserDatabaseConnection:
     def __init__(self):
         self.client = client

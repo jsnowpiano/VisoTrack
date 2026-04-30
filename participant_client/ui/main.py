@@ -17,9 +17,6 @@ from eye_tracker import EyeTracker
 
 API_BASE = "http://127.0.0.1:5000"
 
-# ─────────────────────────────────────────────────────────────
-#  Design tokens
-# ─────────────────────────────────────────────────────────────
 BG         = "#EEECE8"
 SIDEBAR_BG = "#FFFFFF"
 HEADER_BG  = "#0D1B2A"
@@ -123,9 +120,10 @@ QComboBox QAbstractItemView {{
 """
 
 
-# ─────────────────────────────────────────────────────────────
-#  Auth Screen  (Login + Register tabs)
-# ─────────────────────────────────────────────────────────────
+CALIB_TOTAL = 15 
+CALIB_STEPS = CALIB_TOTAL + 1 
+
+
 class AuthScreen(QWidget):
     """Fullscreen auth gate shown before the main window."""
     login_success = pyqtSignal(str, str)   # company_code, company_name
@@ -140,12 +138,10 @@ class AuthScreen(QWidget):
         outer.setAlignment(Qt.AlignCenter)
         outer.setContentsMargins(0, 0, 0, 0)
 
-        # ── centred card ────────────────────────────────────
         card = QFrame(); card.setObjectName("AuthCard")
         card.setFixedWidth(400)
         cl = QVBoxLayout(card); cl.setContentsMargins(40, 36, 40, 36); cl.setSpacing(20)
 
-        # Logo / title
         logo = QLabel("V")
         logo.setStyleSheet(
             f"color:{ACCENT}; font-size:52px; font-weight:700; font-family:'Georgia',serif;"
@@ -163,7 +159,6 @@ class AuthScreen(QWidget):
         sub.setAlignment(Qt.AlignCenter)
         cl.addWidget(sub)
 
-        # Tab toggle
         tab_row = QHBoxLayout(); tab_row.setSpacing(0)
         self._login_tab = self._tab_btn("Log In",   active=True)
         self._reg_tab   = self._tab_btn("Register", active=False)
@@ -172,13 +167,11 @@ class AuthScreen(QWidget):
         tab_row.addWidget(self._login_tab); tab_row.addWidget(self._reg_tab)
         cl.addLayout(tab_row)
 
-        # Stacked forms
         self._form_stack = QStackedWidget()
-        self._form_stack.addWidget(self._build_login_form())    # 0
-        self._form_stack.addWidget(self._build_register_form()) # 1
+        self._form_stack.addWidget(self._build_login_form())
+        self._form_stack.addWidget(self._build_register_form())
         cl.addWidget(self._form_stack)
 
-        # Error label
         self._err_lbl = QLabel("")
         self._err_lbl.setStyleSheet(f"font-size:12px; color:{DANGER};")
         self._err_lbl.setAlignment(Qt.AlignCenter)
@@ -222,7 +215,6 @@ class AuthScreen(QWidget):
             self._style_tab(self._login_tab, False)
             self._style_tab(self._reg_tab, True)
 
-    # ── Login form ───────────────────────────────────────────
     def _build_login_form(self):
         w = QWidget(); lay = QVBoxLayout(w); lay.setSpacing(10); lay.setContentsMargins(0,0,0,0)
 
@@ -249,7 +241,6 @@ class AuthScreen(QWidget):
         lay.addWidget(btn)
         return w
 
-    # ── Register form ────────────────────────────────────────
     def _build_register_form(self):
         w = QWidget(); lay = QVBoxLayout(w); lay.setSpacing(10); lay.setContentsMargins(0,0,0,0)
 
@@ -284,7 +275,6 @@ class AuthScreen(QWidget):
         lbl.setStyleSheet(f"font-size:10px; font-weight:700; color:{TEXT_LIGHT}; letter-spacing:1px;")
         return lbl
 
-    # ── Actions ──────────────────────────────────────────────
     def _do_login(self):
         uid = self._login_uid.text().strip()
         pw  = self._login_pw.text()
@@ -333,9 +323,6 @@ class AuthScreen(QWidget):
             self._err_lbl.setText(str(e))
 
 
-# ─────────────────────────────────────────────────────────────
-#  Calibration overlay
-# ─────────────────────────────────────────────────────────────
 class CalibOverlay(QWidget):
     def __init__(self):
         super().__init__()
@@ -373,41 +360,46 @@ class CalibOverlay(QWidget):
         p.end()
 
 
-# ─────────────────────────────────────────────────────────────
-#  3×3 point grid
-# ─────────────────────────────────────────────────────────────
 class PointGrid(QWidget):
+    COLS = 5
+    ROWS = 3
+    TOTAL = COLS * ROWS  
+
     def __init__(self):
         super().__init__()
-        self.setFixedSize(108, 72); self._active = -1; self._done = set()
+        self.setFixedSize(180, 72)  # wider to accommodate 5 columns
+        self._active = -1
+        self._done   = set()
 
     def reset(self):
         self._active = -1; self._done.clear(); self.update()
 
     def set_active(self, idx):
-        if self._active >= 0: self._done.add(self._active)
-        self._active = idx; self.update()
+        # idx is the raw calibration index (0-14); clamp to grid range
+        if self._active >= 0:
+            self._done.add(self._active)
+        self._active = min(idx, self.TOTAL - 1)
+        self.update()
 
     def set_done(self):
-        self._done = set(range(9)); self._active = -1; self.update()
+        self._done = set(range(self.TOTAL)); self._active = -1; self.update()
 
     def paintEvent(self, e):
         p = QPainter(self); p.setRenderHint(QPainter.Antialiasing)
-        cw = self.width() / 3; ch = self.height() / 3
-        for i in range(9):
-            row, col = divmod(i, 3)
-            cx = int((col + 0.5) * cw); cy = int((row + 0.5) * ch)
+        cw = self.width()  / self.COLS
+        ch = self.height() / self.ROWS
+        for i in range(self.TOTAL):
+            row, col = divmod(i, self.COLS)
+            cx = int((col + 0.5) * cw)
+            cy = int((row + 0.5) * ch)
             if i == self._active:    color, r = QColor(ACCENT), 7
             elif i in self._done:    color, r = QColor(SUCCESS), 5
-            else:                    color, r = QColor(BORDER), 5
+            else:                    color, r = QColor(BORDER),  5
             p.setBrush(QBrush(color)); p.setPen(Qt.NoPen)
             p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
         p.end()
 
 
-# ─────────────────────────────────────────────────────────────
-#  Gaze trail map
-# ─────────────────────────────────────────────────────────────
 class GazeMap(QWidget):
     def __init__(self):
         super().__init__()
@@ -439,9 +431,6 @@ class GazeMap(QWidget):
         p.end()
 
 
-# ─────────────────────────────────────────────────────────────
-#  Completed-session heatmap overlay widget
-# ─────────────────────────────────────────────────────────────
 class GazeHeatmap(QWidget):
     """Renders gaze points as a translucent heatmap over a study image."""
 
@@ -492,9 +481,6 @@ class GazeHeatmap(QWidget):
         p.end()
 
 
-# ─────────────────────────────────────────────────────────────
-#  Card helper
-# ─────────────────────────────────────────────────────────────
 def make_card(margins=(32, 32, 32, 32), spacing=16):
     card = QFrame(); card.setObjectName("Card")
     lay  = QVBoxLayout(card); lay.setContentsMargins(*margins); lay.setSpacing(spacing)
@@ -505,9 +491,6 @@ def hdiv():
     d.setStyleSheet(f"color:{BORDER};"); return d
 
 
-# ─────────────────────────────────────────────────────────────
-#  Study Screen
-# ─────────────────────────────────────────────────────────────
 class StudyScreen(QWidget):
     finished = pyqtSignal(bool, list)
 
@@ -659,10 +642,6 @@ class StudyScreen(QWidget):
         self._calc_image_rect()
         self._position_overlays()
 
-
-# ─────────────────────────────────────────────────────────────
-#  Main Window
-# ─────────────────────────────────────────────────────────────
 class MainWindow(QWidget):
     def __init__(self, company_code: str, company_name: str, on_logout=None):
         super().__init__()
@@ -692,7 +671,6 @@ class MainWindow(QWidget):
         self.worker.start_preview()
         self._set_nav("Assignments")
 
-    # ── Build ────────────────────────────────────────────────
     def _build_ui(self):
         root   = QHBoxLayout(self); root.setContentsMargins(0, 0, 0, 0); root.setSpacing(0)
         root.addWidget(self._build_sidebar())
@@ -704,12 +682,12 @@ class MainWindow(QWidget):
         self.stack.setStyleSheet(f"background:{BG};")
         rl.addWidget(self.stack, 1)
 
-        self.stack.addWidget(self._page_assignments())  # 0
-        self.stack.addWidget(self._page_calibration())  # 1
-        self.stack.addWidget(self._page_heatmaps())     # 2
-        self.stack.addWidget(self._page_live_demo())    # 3
-        self.stack.addWidget(self._page_camera())       # 4
-        self.stack.addWidget(self._page_how_to())       # 5
+        self.stack.addWidget(self._page_assignments())  
+        self.stack.addWidget(self._page_calibration())  
+        self.stack.addWidget(self._page_heatmaps())     
+        self.stack.addWidget(self._page_live_demo())    
+        self.stack.addWidget(self._page_camera())       
+        self.stack.addWidget(self._page_how_to())      
 
         self._bottom_bar = QLabel(
             f"  Logged in as  {self._company_name}  ·  code {self._company_code}"
@@ -718,7 +696,6 @@ class MainWindow(QWidget):
         rl.addWidget(self._bottom_bar)
         root.addWidget(right, 1)
 
-    # ── Sidebar ──────────────────────────────────────────────
     def _build_sidebar(self):
         sb = QWidget(); sb.setObjectName("Sidebar")
         sl = QVBoxLayout(sb); sl.setContentsMargins(0, 0, 0, 0); sl.setSpacing(0)
@@ -732,15 +709,31 @@ class MainWindow(QWidget):
         hl.addWidget(logo)
         sl.addWidget(hdr)
 
-        # Company badge
+        badge_wrapper = QWidget()
+        badge_wrapper.setStyleSheet(
+            "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+            "stop:0 #1a3a5c, stop:1 #2e5f8a);"
+        )
+        bwl = QVBoxLayout(badge_wrapper)
+        bwl.setContentsMargins(16, 10, 16, 12)
+        bwl.setSpacing(2)
+        badge_label = QLabel("COMPANY")
+        badge_label.setAlignment(Qt.AlignCenter)
+        badge_label.setStyleSheet(
+            "font-size:9px; font-weight:700; color:rgba(255,255,255,140); "
+            "letter-spacing:2px; background:transparent;"
+        )
+        bwl.addWidget(badge_label)
         badge = QLabel(self._company_name)
         badge.setAlignment(Qt.AlignCenter)
         badge.setWordWrap(True)
         badge.setStyleSheet(
-            f"font-size:11px; color:{TEXT_MED}; padding:8px 16px 0 16px;"
+            "font-size:15px; font-weight:700; color:#FFFFFF; "
+            "letter-spacing:0.5px; background:transparent;"
         )
-        sl.addWidget(badge)
-        sl.addSpacing(8)
+        bwl.addWidget(badge)
+        sl.addWidget(badge_wrapper)
+        sl.addSpacing(4)
 
         self._nav_btns = {}
         for label in ["Assignments", "Calibration", "Heatmaps", "Live Demo", "Camera", "How to use"]:
@@ -751,7 +744,6 @@ class MainWindow(QWidget):
 
         sl.addStretch()
 
-        # Logout button
         logout_btn = QPushButton("Log Out")
         logout_btn.setCursor(Qt.PointingHandCursor)
         logout_btn.setStyleSheet(f"""
@@ -771,7 +763,6 @@ class MainWindow(QWidget):
         if self._on_logout_cb:
             self._on_logout_cb()
 
-    # ── Pages ────────────────────────────────────────────────
     def _page_assignments(self):
         page  = QWidget(); page.setStyleSheet(f"background:{BG};")
         outer = QVBoxLayout(page); outer.setContentsMargins(40, 30, 40, 40); outer.setSpacing(20)
@@ -933,7 +924,6 @@ class MainWindow(QWidget):
             wl.addWidget(div)
         return wrapper
 
-    # ── Study session ────────────────────────────────────────
     def _start_study(self, assignment: dict):
         self._pending_study = assignment
         self._bottom_bar.setText(
@@ -979,7 +969,6 @@ class MainWindow(QWidget):
         study_name = assignment.get("name") or assignment.get("study_name", "")
         company    = assignment.get("subject") or assignment.get("company_name", "")
 
-        # Fetch the study image so we can render it under the heatmap
         image_b64 = assignment.get("_raw", {}).get("image_b64")
         if not image_b64:
             try:
@@ -993,10 +982,8 @@ class MainWindow(QWidget):
             except Exception:
                 pass
 
-        # Add a heatmap card to the Heatmaps page
         self._add_heatmap_card(study_name, image_b64, gaze_points)
 
-        # Update Live Demo gaze trail with the final point
         if hasattr(self, 'gaze_map') and gaze_points:
             self.gaze_map._trail = [(pt[0], pt[1]) for pt in gaze_points[-500:]]
             self.gaze_map._gx = gaze_points[-1][0]
@@ -1045,9 +1032,9 @@ class MainWindow(QWidget):
         instr_lay.addWidget(instr_title); instr_lay.addWidget(hdiv())
         for num, text in [
             ("1", "Position yourself ~60cm from the screen."),
-            ("2", "A dot will appear at 9 screen positions."),
+            ("2", f"A dot will appear at {CALIB_TOTAL} screen positions."),
             ("3", "Follow each dot with your eyes — keep your head still."),
-            ("4", "Hold your gaze steady for ~1.5 seconds per point."),
+            ("4", "Hold your gaze steady for ~2 seconds per point."),
         ]:
             row = QHBoxLayout(); row.setSpacing(10)
             nb  = QLabel(num); nb.setFixedSize(22, 22); nb.setAlignment(Qt.AlignCenter)
@@ -1095,7 +1082,8 @@ class MainWindow(QWidget):
         prog_header.addWidget(self.calib_step_lbl)
         prog_lay.addLayout(prog_header)
 
-        self.calib_bar = QProgressBar(); self.calib_bar.setRange(0, 21)
+        # Range = CALIB_STEPS (15 grid + 1 offset)
+        self.calib_bar = QProgressBar(); self.calib_bar.setRange(0, CALIB_STEPS)
         self.calib_bar.setValue(0); self.calib_bar.setTextVisible(False)
         self.calib_bar.setFixedHeight(6); prog_lay.addWidget(self.calib_bar)
 
@@ -1125,14 +1113,12 @@ class MainWindow(QWidget):
         hdr_row.addWidget(self._hm_count_lbl)
         outer.addLayout(hdr_row)
 
-        # Scrollable list of completed heatmap cards
         scroll = QScrollArea(); scroll.setWidgetResizable(True); scroll.setFrameShape(QFrame.NoFrame)
         scroll.setStyleSheet(f"background:{BG};border:none;")
         self._hm_list_widget = QWidget(); self._hm_list_widget.setStyleSheet(f"background:{BG};")
         self._hm_list_lay    = QVBoxLayout(self._hm_list_widget)
         self._hm_list_lay.setContentsMargins(0, 0, 0, 0); self._hm_list_lay.setSpacing(20)
 
-        # Empty state shown until first session completes
         self._hm_empty = self._make_hm_empty()
         self._hm_list_lay.addWidget(self._hm_empty)
         self._hm_list_lay.addStretch()
@@ -1140,7 +1126,7 @@ class MainWindow(QWidget):
         scroll.setWidget(self._hm_list_widget)
         outer.addWidget(scroll, 1)
 
-        self._completed_sessions = []   # list of {study_name, image_b64, gaze_points}
+        self._completed_sessions = []
         return page
 
     def _make_hm_empty(self):
@@ -1165,13 +1151,10 @@ class MainWindow(QWidget):
         return w
 
     def _add_heatmap_card(self, study_name: str, image_b64: str, gaze_points: list):
-        """Called after a study finishes — inserts a new heatmap card at the top."""
-        # Remove empty state on first card
         if self._hm_empty is not None:
             self._hm_list_lay.removeWidget(self._hm_empty)
             self._hm_empty.deleteLater()
             self._hm_empty = None
-        # Remove trailing stretch so we can re-add after
         while self._hm_list_lay.count() > 0:
             item = self._hm_list_lay.itemAt(self._hm_list_lay.count() - 1)
             if item.spacerItem():
@@ -1180,8 +1163,6 @@ class MainWindow(QWidget):
             else:
                 break
 
-        # Sub-sample to 200 representative points so dense sessions don't
-        # visually overpower sparse ones.
         TARGET = 200
         pts = gaze_points
         if len(pts) > TARGET:
@@ -1191,7 +1172,6 @@ class MainWindow(QWidget):
         card = QFrame(); card.setObjectName("Card")
         cl   = QVBoxLayout(card); cl.setContentsMargins(24, 20, 24, 20); cl.setSpacing(12)
 
-        # Header row: study name + point count badge
         hdr = QHBoxLayout()
         name_lbl = QLabel(study_name)
         name_lbl.setStyleSheet(f"font-size:15px;font-weight:700;color:{TEXT_DARK};")
@@ -1340,7 +1320,7 @@ class MainWindow(QWidget):
 
         found = []
         for i in range(8):
-            cap = cv2.VideoCapture(i)
+            cap = cv2.VideoCapture(i, cv2.CAP_AVFOUNDATION)
             if cap.isOpened():
                 ret, _ = cap.read()
                 if ret:
@@ -1394,12 +1374,12 @@ class MainWindow(QWidget):
 
         card, cl = make_card()
         steps = [
-            ("1  Select your camera",       "Go to the Camera tab and use the dropdown to select your webcam."),
-            ("2  Run calibration",           "Go to the Calibration tab and click Begin Calibration. Follow the dots."),
-            ("3  Tracking starts automatically", "Once all 9 points are collected, eye tracking begins."),
-            ("4  Open an assignment",        "Go to Assignments and click Start on an assignment."),
-            ("5  View heatmaps",             "After a session, visit the Heatmaps tab."),
-            ("6  Recalibrate if needed",     "Return to Calibration and click Recalibrate."),
+            ("1  Select your camera",           "Go to the Camera tab and use the dropdown to select your webcam."),
+            ("2  Run calibration",               f"Go to the Calibration tab and click Begin Calibration. Follow all {CALIB_TOTAL} dots."),
+            ("3  Tracking starts automatically", "Once all points are collected, eye tracking begins."),
+            ("4  Open an assignment",            "Go to Assignments and click Start on an assignment."),
+            ("5  View heatmaps",                 "After a session, visit the Heatmaps tab."),
+            ("6  Recalibrate if needed",         "Return to Calibration and click Recalibrate."),
         ]
         for i, (title, body) in enumerate(steps):
             t = QLabel(title); t.setStyleSheet(f"font-size:13px;font-weight:600;color:{TEXT_DARK};"); cl.addWidget(t)
@@ -1409,7 +1389,6 @@ class MainWindow(QWidget):
         outer.addWidget(card); outer.addStretch()
         return page
 
-    # ── Nav ──────────────────────────────────────────────────
     _page_map = {"Assignments": 0, "Calibration": 1, "Heatmaps": 2, "Live Demo": 3, "Camera": 4, "How to use": 5}
 
     def _set_nav(self, label):
@@ -1418,14 +1397,12 @@ class MainWindow(QWidget):
             btn.setProperty("active", "true" if k == label else "false")
             btn.style().unpolish(btn); btn.style().polish(btn)
 
-    # ── Calibration ──────────────────────────────────────────
     def _handle_start(self):
         self._calib_done = False; self._tracking = False
         self.start_btn.setEnabled(False); self.start_btn.setText("Calibrating…")
         self.recalib_btn.setVisible(False)
         self.calib_step_lbl.setText("Starting…"); self.calib_bar.setValue(0)
         self.point_grid.reset(); self._calib_status.setText("")
-        # Reset live demo status indicator
         if hasattr(self, '_live_status_dot'):
             self._live_status_dot.setStyleSheet(f"font-size:10px;color:{TEXT_LIGHT};")
             self._live_status_lbl.setText("Calibrating…")
@@ -1433,26 +1410,25 @@ class MainWindow(QWidget):
         self.worker.start_calibration()
 
     def _on_calib_step(self, idx, px, py):
-        if idx < 20:
-            self.calib_step_lbl.setText(f"Point {idx + 1} of 20")
+        if idx < CALIB_TOTAL:
+            self.calib_step_lbl.setText(f"Point {idx + 1} of {CALIB_TOTAL}")
             self.calib_bar.setValue(idx)
-            self.point_grid.set_active(min(idx, 8))
-            self._bottom_bar.setText(f"  Calibrating — point {idx + 1} of 20. Keep eyes on the dot.")
+            self.point_grid.set_active(idx)
+            self._bottom_bar.setText(f"  Calibrating — point {idx + 1} of {CALIB_TOTAL}. Keep eyes on the dot.")
         else:
             self.calib_step_lbl.setText("Offset correction…")
-            self.calib_bar.setValue(20)
+            self.calib_bar.setValue(CALIB_TOTAL)
             self._bottom_bar.setText("  Almost done — look at the centre dot to correct offset.")
         self.overlay.show_point(px, py)
 
     def _on_calib_done(self):
-        self.overlay.hide_overlay(); self.calib_bar.setValue(21)
+        self.overlay.hide_overlay(); self.calib_bar.setValue(CALIB_STEPS)
         self.calib_step_lbl.setText("Complete ✓"); self.point_grid.set_done()
         self.start_btn.setEnabled(True); self.start_btn.setText("Begin Calibration")
         self.recalib_btn.setVisible(True)
         self._calib_done = True; self._tracking = True
         self._calib_status.setText("Calibration complete. Tracking is now active.")
         self._calib_status.setStyleSheet(f"font-size:12px;color:{SUCCESS};")
-        # Update Live Demo status indicator
         if hasattr(self, '_live_status_dot'):
             self._live_status_dot.setStyleSheet(f"font-size:10px;color:{SUCCESS};")
             self._live_status_lbl.setText("Live")
@@ -1467,7 +1443,6 @@ class MainWindow(QWidget):
         else:
             self._bottom_bar.setText("  Tracking active — view live gaze in Live Demo tab.")
 
-    # ── Frame / Gaze ─────────────────────────────────────────
     def _on_frame(self, frame):
         self._frame_count += 1
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -1499,9 +1474,6 @@ class MainWindow(QWidget):
         self.worker.stop(); self.worker.wait(2000); self.overlay.hide()
 
 
-# ─────────────────────────────────────────────────────────────
-#  App shell  — single window, auth ↔ portal via QStackedWidget
-# ─────────────────────────────────────────────────────────────
 class AppShell(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -1525,7 +1497,6 @@ class AppShell(QMainWindow):
             self._stack.removeWidget(self._portal)
             self._portal.deleteLater()
 
-        # MainWindow is now a QWidget — add directly to the stack
         self._portal = MainWindow(company_code, company_name, on_logout=self.go_to_auth)
         self._stack.addWidget(self._portal)
         self._stack.setCurrentIndex(1)
@@ -1538,8 +1509,6 @@ class AppShell(QMainWindow):
         self._auth._login_pw.clear()
         self._auth._err_lbl.setText("")
 
-
-# ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")

@@ -9,17 +9,8 @@ from storage.connection import (
 api_bp = Blueprint("api", __name__)
 
 
-# ─────────────────────────────────────────────────────────────
-#  Company (Researcher) auth
-# ─────────────────────────────────────────────────────────────
-
 @api_bp.route("/api/companies/register", methods=["POST"])
 def register_company():
-    """
-    Register a new researcher company.
-    Body: { name, password }
-    Returns: { access_code }
-    """
     payload = request.get_json(silent=True) or {}
     name     = (payload.get("name") or "").strip()
     password = (payload.get("password") or "").strip()
@@ -55,11 +46,7 @@ def register_company():
 
 @api_bp.route("/api/companies/login", methods=["POST"])
 def login_company():
-    """
-    Researcher login.
-    Body: { name, password }
-    Returns: { access_code, name }
-    """
+
     payload  = request.get_json(silent=True) or {}
     name     = (payload.get("name") or "").strip()
     password = (payload.get("password") or "").strip()
@@ -85,13 +72,7 @@ def login_company():
         "name":        company["name"],
     }), 200
 
-
-# ─────────────────────────────────────────────────────────────
-#  Studies  (code-scoped)
-# ─────────────────────────────────────────────────────────────
-
 def _require_company_code():
-    """Pull company_code from query-string or JSON body."""
     code = request.args.get("company_code") or ""
     if not code:
         body = request.get_json(silent=True) or {}
@@ -101,10 +82,6 @@ def _require_company_code():
 
 @api_bp.route("/api/studies", methods=["GET"])
 def get_studies():
-    """
-    Returns studies WITHOUT image_b64.
-    Requires ?company_code=XXXXXX so participants only see their own studies.
-    """
     company_code = request.args.get("company_code", "").strip()
     if not company_code:
         return jsonify({"error": "company_code is required"}), 400
@@ -124,7 +101,6 @@ def get_studies():
 
 @api_bp.route("/api/studies/<study_name>", methods=["GET"])
 def get_study(study_name):
-    """Return a single study including image_b64."""
     company      = request.args.get("company", "")
     company_code = request.args.get("company_code", "").strip()
 
@@ -140,10 +116,6 @@ def get_study(study_name):
 
 @api_bp.route("/api/studies", methods=["POST"])
 def create_study():
-    """
-    Researcher creates a study.
-    Body must include company_code so the study is tagged to that company.
-    """
     payload      = request.get_json(silent=True) or {}
     company_code = (payload.get("company_code") or "").strip()
 
@@ -165,7 +137,6 @@ def create_study():
 
 @api_bp.route("/api/studies/session", methods=["POST"])
 def add_session():
-    """Append a gaze session to an existing study."""
     payload      = request.get_json(silent=True) or {}
     study_name   = payload.get("study_name")
     company_name = payload.get("company_name", "")
@@ -186,7 +157,6 @@ def add_session():
 
 @api_bp.route("/api/studies/<study_name>", methods=["DELETE"])
 def delete_study(study_name):
-    """Researcher deletes a study. Requires company_code."""
     payload      = request.get_json(silent=True) or {}
     company_name = payload.get("company_name", "")
     company_code = (payload.get("company_code") or "").strip()
@@ -203,18 +173,8 @@ def delete_study(study_name):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-# ─────────────────────────────────────────────────────────────
-#  User (Participant) auth
-# ─────────────────────────────────────────────────────────────
-
 @api_bp.route("/api/users/register", methods=["POST"])
 def register_user():
-    """
-    Register a new participant.
-    Body: { user_id, password, company_code }
-    The company_code is validated and stored on the user.
-    """
     payload      = request.get_json(silent=True) or {}
     user_id      = (payload.get("user_id") or "").strip()
     password     = (payload.get("password") or "").strip()
@@ -223,7 +183,6 @@ def register_user():
     if not user_id or not password or not company_code:
         return jsonify({"error": "user_id, password, and company_code are required"}), 400
 
-    # Validate the access code
     cdb = CompanyDatabaseConnection()
     company = cdb.get_company_by_code(company_code)
     if not company:
@@ -256,11 +215,6 @@ def register_user():
 
 @api_bp.route("/api/auth/login", methods=["POST"])
 def login_user():
-    """
-    Participant login.
-    Body: { user_id, password }
-    Returns: { company_code, company_name } on success.
-    """
     payload  = request.get_json(silent=True) or {}
     user_id  = payload.get("user_id")
     password = payload.get("password")

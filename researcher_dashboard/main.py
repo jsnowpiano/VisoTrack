@@ -17,16 +17,13 @@ from PyQt5.QtGui import (
 
 API_BASE = "http://127.0.0.1:5000"
 
-# ── Anthropic vision — pip install anthropic ──────────────────
+
 try:
     import anthropic as _anthropic
     ANTHROPIC_AVAILABLE = True
 except ImportError:
     ANTHROPIC_AVAILABLE = False
 
-# ─────────────────────────────────────────────────────────────
-#  Design tokens
-# ─────────────────────────────────────────────────────────────
 BG         = "#EEECE8"
 SIDEBAR_BG = "#FFFFFF"
 HEADER_BG  = "#0D1B2A"
@@ -116,9 +113,6 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 """
 
 
-# ─────────────────────────────────────────────────────────────
-#  Auth Screen  (Register + Login tabs)
-# ─────────────────────────────────────────────────────────────
 class ResearcherAuthScreen(QWidget):
     login_success = pyqtSignal(str, str)  # access_code, company_name
 
@@ -160,8 +154,8 @@ class ResearcherAuthScreen(QWidget):
         cl.addLayout(tab_row)
 
         self._form_stack = QStackedWidget()
-        self._form_stack.addWidget(self._build_login_form())    # 0
-        self._form_stack.addWidget(self._build_register_form()) # 1
+        self._form_stack.addWidget(self._build_login_form()) 
+        self._form_stack.addWidget(self._build_register_form()) 
         cl.addWidget(self._form_stack)
 
         self._err_lbl = QLabel("")
@@ -277,7 +271,6 @@ class ResearcherAuthScreen(QWidget):
                                  json={"name": name, "password": pw}, timeout=10)
             data = resp.json()
             if resp.ok:
-                # Show the code in a dialog before proceeding
                 code = data["access_code"]
                 msg = QMessageBox(self)
                 msg.setWindowTitle("Company Registered!")
@@ -298,9 +291,6 @@ class ResearcherAuthScreen(QWidget):
             self._err_lbl.setText(str(e))
 
 
-# ─────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────
 def make_card(margins=(28, 24, 28, 24), spacing=14):
     card = QFrame(); card.setObjectName("Card")
     lay  = QVBoxLayout(card)
@@ -321,10 +311,6 @@ def section_title(text):
     lbl.setStyleSheet(f"font-size:20px;font-weight:700;color:{TEXT_DARK};")
     return lbl
 
-
-# ─────────────────────────────────────────────────────────────
-#  Clickable image drop-zone
-# ─────────────────────────────────────────────────────────────
 class ImageDropZone(QLabel):
     image_selected = pyqtSignal(str)
     FIXED_HEIGHT = 200
@@ -389,9 +375,6 @@ class ImageDropZone(QLabel):
         super().resizeEvent(e); self._display()
 
 
-# ─────────────────────────────────────────────────────────────
-#  Gaze heatmap widget
-# ─────────────────────────────────────────────────────────────
 class GazeHeatmap(QLabel):
     def __init__(self):
         super().__init__()
@@ -430,10 +413,6 @@ class GazeHeatmap(QLabel):
             p.drawText(self.rect(), Qt.AlignCenter, "No gaze data recorded yet")
         p.end()
 
-
-# ─────────────────────────────────────────────────────────────
-#  AI Insights worker  (runs Anthropic call off the main thread)
-# ─────────────────────────────────────────────────────────────
 class AIInsightsWorker(QThread):
     chunk_ready = pyqtSignal(str)
     finished_ok = pyqtSignal()
@@ -501,9 +480,6 @@ class AIInsightsWorker(QThread):
             self.error.emit(str(ex))
 
 
-# ─────────────────────────────────────────────────────────────
-#  Main Researcher Dashboard
-# ─────────────────────────────────────────────────────────────
 class ResearcherDashboard(QWidget):
     def __init__(self, access_code: str, company_name: str, on_logout=None):
         super().__init__()
@@ -515,16 +491,15 @@ class ResearcherDashboard(QWidget):
         self._ai_key        = ""
         self._ai_worker     = None
 
-        # Pre-fill from environment variable if set
+    
         import os
-        self._ai_key = os.environ.get("ANTHROPIC_API_KEY", "API_KEY_PLACEHOLDER")
+        self._ai_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
         self._build_ui()
         self.setStyleSheet(STYLESHEET)
         self._set_nav("Studies")
         QTimer.singleShot(300, self._load_studies)
 
-    # ── Build ────────────────────────────────────────────────
     def _build_ui(self):
         root = QHBoxLayout(self); root.setContentsMargins(0, 0, 0, 0); root.setSpacing(0)
         root.addWidget(self._build_sidebar())
@@ -542,7 +517,6 @@ class ResearcherDashboard(QWidget):
         rl.addWidget(self._status_bar)
         root.addWidget(right, 1)
 
-    # ── Sidebar ──────────────────────────────────────────────
     def _build_sidebar(self):
         sb = QWidget(); sb.setObjectName("Sidebar")
         sl = QVBoxLayout(sb); sl.setContentsMargins(0, 0, 0, 0); sl.setSpacing(0)
@@ -559,7 +533,7 @@ class ResearcherDashboard(QWidget):
         hl.addWidget(logo); hl.addWidget(subtitle)
         sl.addWidget(hdr)
 
-        # Company name + code badge
+
         co_lbl = QLabel(self._company_name)
         co_lbl.setAlignment(Qt.AlignCenter)
         co_lbl.setStyleSheet(f"font-size:12px; font-weight:600; color:{TEXT_DARK}; padding:10px 16px 2px 16px;")
@@ -613,7 +587,7 @@ class ResearcherDashboard(QWidget):
         if self._on_logout_cb:
             self._on_logout_cb()
 
-    # ── Studies page ─────────────────────────────────────────
+
     def _page_studies(self):
         page = QWidget(); page.setStyleSheet(f"background:{BG};")
         outer = QVBoxLayout(page); outer.setContentsMargins(40, 30, 40, 40); outer.setSpacing(20)
@@ -729,7 +703,7 @@ class ResearcherDashboard(QWidget):
         card.mousePressEvent = lambda e: self._open_detail(study)
         return card
 
-    # ── Create study page ────────────────────────────────────
+
     def _page_create(self):
         page = QWidget(); page.setStyleSheet(f"background:{BG};")
         outer = QVBoxLayout(page); outer.setContentsMargins(0, 0, 0, 0); outer.setSpacing(0)
@@ -770,9 +744,9 @@ class ResearcherDashboard(QWidget):
         det_lay.addWidget(field_label("STUDY NAME"))
         self._inp_name = QLineEdit(); self._inp_name.setPlaceholderText("e.g. Resume Attention Study")
         det_lay.addWidget(self._inp_name)
-        det_lay.addWidget(field_label("COMPANY / ORGANISATION"))
-        self._inp_company = QLineEdit(); self._inp_company.setPlaceholderText("e.g. Acme Corp")
-        det_lay.addWidget(self._inp_company)
+        self._inp_company = QLineEdit()
+        self._inp_company.setText(self._company_name)
+        self._inp_company.hide()
         det_lay.addWidget(field_label("VIEWING TIME (seconds)"))
         time_row = QHBoxLayout(); time_row.setSpacing(10)
         self._inp_time = QSpinBox(); self._inp_time.setRange(1, 300); self._inp_time.setValue(10)
@@ -800,7 +774,7 @@ class ResearcherDashboard(QWidget):
     def _clear_image(self):
         self._drop_zone._path = None; self._drop_zone.clear(); self._drop_zone._set_empty()
 
-    # ── Detail page ──────────────────────────────────────────
+
     def _page_detail(self):
         page = QWidget(); page.setStyleSheet(f"background:{BG};")
         outer = QVBoxLayout(page); outer.setContentsMargins(40, 30, 40, 40); outer.setSpacing(20)
@@ -879,7 +853,7 @@ class ResearcherDashboard(QWidget):
         hm_lay.addLayout(stats_row)
         il.addWidget(hm_card)
 
-        # ── AI Insights card ─────────────────────────────────
+
         ai_card, ai_lay = make_card()
         ai_hdr = QHBoxLayout()
         ai_hdr.addWidget(self._ch("AI Insights")); ai_hdr.addStretch()
@@ -892,7 +866,7 @@ class ResearcherDashboard(QWidget):
         ai_lay.addLayout(ai_hdr)
         ai_lay.addWidget(hdiv())
 
-        # API key row
+
         key_row = QHBoxLayout(); key_row.setSpacing(8)
         key_lbl = QLabel("ANTHROPIC API KEY")
         key_lbl.setStyleSheet(f"font-size:11px;font-weight:700;color:{TEXT_LIGHT};letter-spacing:1px;")
@@ -941,7 +915,7 @@ class ResearcherDashboard(QWidget):
         self._ai_btn.clicked.connect(self._run_ai_insights)
         ai_lay.addWidget(self._ai_btn, 0, Qt.AlignLeft)
 
-        # Output area
+
         self._ai_output = QLabel("")
         self._ai_output.setWordWrap(True)
         self._ai_output.setTextFormat(Qt.RichText)
@@ -960,7 +934,7 @@ class ResearcherDashboard(QWidget):
         scroll.setWidget(inner); outer.addWidget(scroll, 1)
         return page
 
-    # ── Nav ──────────────────────────────────────────────────
+
     _page_map = {"Studies": 0, "Create Study": 1, "Detail": 2}
 
     def _set_nav(self, label):
@@ -969,7 +943,7 @@ class ResearcherDashboard(QWidget):
             btn.setProperty("active", "true" if k == label else "false")
             btn.style().unpolish(btn); btn.style().polish(btn)
 
-    # ── API calls ────────────────────────────────────────────
+
     def _load_studies(self):
         self._status("Loading studies…", WARNING)
         try:
@@ -1109,7 +1083,7 @@ class ResearcherDashboard(QWidget):
         self._hm_session_lbl.setText(f"{len(sessions)} session{'s' if len(sessions)!=1 else ''}")
         self._status(f"  Loaded — {len(sessions)} session(s), {n} total gaze points.", SUCCESS)
 
-    # ── AI Insights ──────────────────────────────────────────
+
     def _run_ai_insights(self):
         if not self._ai_key:
             self._ai_output.setText(
@@ -1124,7 +1098,7 @@ class ResearcherDashboard(QWidget):
             )
             self._ai_output.show(); return
 
-        # Render the heatmap widget to a PNG in memory
+
         pixmap = self._heatmap.grab()
         buf = QByteArray()
         buf_io = QBuffer(buf)
@@ -1162,14 +1136,14 @@ class ResearcherDashboard(QWidget):
 
     def _on_ai_chunk(self, text: str):
         self._ai_raw += text
-        # Convert basic markdown to simple HTML for readability
+
         import re
         html = self._ai_raw
-        # Bold **text**
+
         html = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', html)
-        # Numbered list items
+
         html = re.sub(r'(?m)^(\d+)\.\s+', r'<br><b>\1.</b> ', html)
-        # Newlines
+
         html = html.replace('\n', '<br>')
         self._ai_output.setText(html)
 
@@ -1186,7 +1160,7 @@ class ResearcherDashboard(QWidget):
         self._ai_btn.setText("✦  Analyse Heatmap with AI")
         self._status(f"  AI error: {msg}", DANGER)
 
-    # ── Download heatmap ─────────────────────────────────────
+
     def _download_heatmap(self):
         study_name   = self._current_study.get("study_name","heatmap") if self._current_study else "heatmap"
         default_name = f"{study_name.replace(' ','_')}_heatmap.png"
@@ -1235,10 +1209,6 @@ class ResearcherDashboard(QWidget):
         if color:
             QTimer.singleShot(4000, lambda: self._status("  Ready"))
 
-
-# ─────────────────────────────────────────────────────────────
-#  App shell  — single window, auth ↔ dashboard via QStackedWidget
-# ─────────────────────────────────────────────────────────────
 class AppShell(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -1250,16 +1220,16 @@ class AppShell(QMainWindow):
 
         self._auth = ResearcherAuthScreen()
         self._auth.login_success.connect(self._on_login)
-        self._stack.addWidget(self._auth)   # index 0
+        self._stack.addWidget(self._auth)   
 
-        self._dashboard = None             # built on first login
+        self._dashboard = None             
 
     def _on_login(self, access_code: str, company_name: str):
         if self._dashboard is not None:
             self._stack.removeWidget(self._dashboard)
             self._dashboard.deleteLater()
 
-        # ResearcherDashboard is now a QWidget — add it directly
+
         self._dashboard = ResearcherDashboard(
             access_code, company_name, on_logout=self.go_to_auth
         )
@@ -1275,7 +1245,7 @@ class AppShell(QMainWindow):
         self._auth._err_lbl.setText("")
 
 
-# ─────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
